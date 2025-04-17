@@ -9,13 +9,14 @@ class Program
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
         var reader = new RfidReader();
-        reader.ConfigurePort("COM14", 115200);
+        reader.ConfigurePort("COM3", 115200);
 
         try
         {
             reader.Open();
+            reader.ReadHardwareInfo();
             Console.WriteLine("✅ 已連接 RFID 讀寫器");
-       
+      
             // 目標標籤 UID（16 hex 字元）
             List<string> uids = new List<string>();
             uids = reader.ReadMultipleUIDs();

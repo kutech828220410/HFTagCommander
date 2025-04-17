@@ -22,8 +22,8 @@ namespace RfidReaderLib
 
         public void ConfigurePort(string portName, int baudRate = 19200, int dataBits = 8, Parity parity = Parity.None, StopBits stopBits = StopBits.One)
         {
-            Console.InputEncoding = Encoding.UTF8;
-            Console.OutputEncoding = Encoding.UTF8;
+            //Console.InputEncoding = Encoding.UTF8;
+            //Console.OutputEncoding = Encoding.UTF8;
             _serialPort = new SerialPort(portName, baudRate, parity, dataBits, stopBits);
             _serialPort.ReadTimeout = 1000;
             _serialPort.WriteTimeout = 1000;
@@ -41,16 +41,16 @@ namespace RfidReaderLib
                 _serialPort.Close();
         }
 
-        public byte[] ReadHardwareInfo()
+        public string ReadHardwareInfo()
         {
             byte[] command = new byte[] { 0xdd, 0x11, 0xef, 0x09, 0x00, 0x00, 0x00 };
             AppendCRC(ref command);
-            return SendAndReceive(command);
+            return ParseHardwareInfo(SendAndReceive(command));
         }
 
         public string ParseHardwareInfo(byte[] data)
         {
-            if (data.Length < 21) return "資料不足";
+            if (data.Length < 21) return null;
 
             int baseIndex = 4;
             string year = "20" + data[baseIndex + 6].ToString("X2");
@@ -116,12 +116,12 @@ namespace RfidReaderLib
                     uidList.Add(uidStr);
                 }
 
-                Console.WriteLine($"\n✅ 共解析出 {uidList.Count} 張 UID");
+                Console.WriteLine($"共解析出 {uidList.Count} 張 UID");
                 return uidList;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 錯誤: {ex.Message}");
+                Console.WriteLine($"錯誤: {ex.Message}");
                 return uidList;
             }
        
@@ -359,12 +359,12 @@ namespace RfidReaderLib
                     }
                 }
 
-                Console.WriteLine($"✅ 解析完畢，共 {results.Count} 筆區塊資料");
+                Console.WriteLine($"解析完畢，共 {results.Count} 筆區塊資料");
                 return results;
             }
             catch(Exception ex)
             {
-                Console.WriteLine($"❌ 錯誤: {ex.Message}");
+                Console.WriteLine($"錯誤: {ex.Message}");
                 return results;
             }
     
