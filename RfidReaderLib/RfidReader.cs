@@ -8,6 +8,12 @@ using System.Threading;
 
 namespace RfidReaderLib
 {
+    public class BlockDataResult
+    {
+        public string UID { get; set; }
+        public List<byte[]> Datas { get; set; }
+        public byte BlockStatus { get; set; }
+    }
     public class RfidReader
     {
         private SerialPort _serialPort;
@@ -120,11 +126,49 @@ namespace RfidReaderLib
             }
        
         }
-        public class BlockDataResult
+        public void ReadBlocksDatas(string uidHex, byte blockStart, byte blockCount = 0x08)
         {
-            public string UID { get; set; }
-            public List<byte[]> Datas { get; set; }
-            public byte BlockStatus { get; set; }
+            if (string.IsNullOrWhiteSpace(uidHex) || uidHex.Length != 16)
+                throw new ArgumentException("UID Hex 字串格式錯誤，必須為 16 字元 (8 bytes)");
+
+            byte[] uid = new byte[8];
+            for (int i = 0; i < 8; i++)
+            {
+                uid[i] = Convert.ToByte(uidHex.Substring(i * 2, 2), 16);
+            }
+
+            List<byte> command = new List<byte>
+            {
+                0xDD, 0x11, 0xEF,
+                0x13,
+                0x00,
+                0x23,
+                0x01,
+
+            };
+            command.AddRange(uid);
+            command.Add(blockStart);
+            command.Add(blockCount);
+
+            byte[] cmdArray = command.ToArray();
+            AppendCRC(ref cmdArray);
+            Console.WriteLine($"發出命令 : {ToHexString(cmdArray)}");
+
+            byte[] response = new byte[0];
+            for (int i = 0; i < 3; i++)
+            {
+                response = SendAndReceive(cmdArray, (buffer, complete) =>
+                {
+                    if (buffer.Count > 7)
+                    {
+                        if (buffer[7] == 0x59) complete();
+                    }
+                }, 1000);
+                if (response != null)
+                {
+                    break;
+                }
+            }
         }
         public bool WriteMultipleBlocks(List<string> uidHex, byte blockStart, byte[] blockData)
         {
@@ -139,6 +183,7 @@ namespace RfidReaderLib
                     uid[j] = Convert.ToByte(uidHex[i].Substring(j * 2, 2), 16);
                 }
                 WriteMultipleBlocks(uid, blockStart, blockData);
+                System.Threading.Thread.Sleep(10);
             }
             return true;
         }
@@ -181,9 +226,9 @@ namespace RfidReaderLib
             Console.WriteLine($"發出命令 : {ToHexString(cmdArray)}");
             byte[] response = SendAndReceive(cmdArray, (buffer, complete) =>
             {
-                if (buffer.Count >= 7 && buffer[buffer.Count - 7] == 0x24 && buffer[buffer.Count - 6] == 0x59)
+                if (buffer.Count >= 7)
                 {
-                    complete();
+                    if (buffer[7] == 0x24 && buffer[6] == 0x59) complete();
                 }
             }, 3000);
 
@@ -219,15 +264,27 @@ namespace RfidReaderLib
 
             byte[] cmdArray = command.ToArray();
             AppendCRC(ref cmdArray);
-
-            byte[] response = SendAndReceive(cmdArray, (buffer, complete) =>
+            byte[] response = new byte[0];
+            for (int i = 0; i < 3; i++)
             {
-                if (buffer.Count >= 7 && buffer[buffer.Count - 7] == 0x24 && buffer[buffer.Count - 6] == 0x59)
+                response = SendAndReceive(cmdArray, (buffer, complete) =>
                 {
-                    complete();
+                    if (buffer.Count >= 7 && buffer[buffer.Count - 7] == 0x24)
+                    {
+                        complete();
+                    }
+                }, 200);
+                if(response != null)
+                {
+                    break;
                 }
-            }, 3000);
-
+            }
+            
+            if (response.Length > 0)
+            {
+                string uidStr = BitConverter.ToString(uid).Replace("-", "");
+                Console.WriteLine($"{uidStr} - 寫入完成");
+            }
             return response.Length > 0;
         }
         public List<BlockDataResult> ReadMultipleBlockData(byte blockStart = 0x00, byte blockCount = 0x05)
@@ -404,7 +461,7 @@ namespace RfidReaderLib
             if (isDone)
                 return buffer.ToArray();
 
-            throw new TimeoutException("資料接收逾時（未達完成條件）");
+            throw new TimeoutException($"資料接收逾時（{ToHexString(buffer.ToArray())}）");
         }
 
         private void AppendCRC(ref byte[] data)

@@ -15,13 +15,11 @@ class Program
         {
             reader.Open();
             Console.WriteLine("✅ 已連接 RFID 讀寫器");
-
+       
             // 目標標籤 UID（16 hex 字元）
             List<string> uids = new List<string>();
-            uids.Add("E00401082F13829D");
-            uids.Add("E00401082F13838A");
-            uids.Add("E00401082F138389");
-            uids.Add("E00401082F138271");
+            uids = reader.ReadMultipleUIDs();
+           
             // 要寫入的資料（2 區塊，每塊 4 bytes，共 8 bytes）
             byte[] data = new byte[]
             {
@@ -33,6 +31,7 @@ class Program
             // 寫入 block 0 起始
             bool success = reader.WriteMultipleBlocks(uids, 0x00, data);
 
+            reader.ReadBlocksDatas(uids[0], 0, 8);
             Console.WriteLine(success ? "✅ 寫入成功" : "❌ 寫入失敗");
         }
         catch (Exception ex)
