@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO.Ports;
+using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -67,7 +68,7 @@ namespace RfidReaderLib
         public List<string> ReadMultipleUIDs()
         {
             List<string> uidList = new List<string>();
-            byte[] command = new byte[] { 0xDD, 0x11, 0xEF, 0x09, 0x00, 0x01, 0x00, 0x00 };
+            byte[] command = new byte[] { 0xDD, 0x11, 0xEF, 0x09, 0xFF, 0x01, 0x00, 0x00 };
             AppendCRC(ref command);
             try
             {
@@ -104,7 +105,7 @@ namespace RfidReaderLib
                         len = rawResponse.Length - start_po;
                         packet = new byte[len];
                         Array.Copy(rawResponse, start_po, packet, 0, len);
-                        Console.WriteLine($"結尾封包 : {ToHexString(packet)}");
+                        //Console.WriteLine($"結尾封包 : {ToHexString(packet)}");
                         continue;
                     }
 
@@ -115,8 +116,8 @@ namespace RfidReaderLib
                     string uidStr = BitConverter.ToString(uid).Replace("-", "");
                     uidList.Add(uidStr);
                 }
-
-                Console.WriteLine($"共解析出 {uidList.Count} 張 UID");
+                uidList = uidList.Distinct().ToList();
+                //Console.WriteLine($"共解析出 {uidList.Count} 張 UID");
                 return uidList;
             }
             catch (Exception ex)
